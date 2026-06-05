@@ -7,7 +7,6 @@ interface Props {
   saved: boolean
 }
 
-/** Vstup pre Groq API kľúč s možnosťou zobraziť/skryť a uložiť do localStorage */
 export function ApiKeyInput({ value, onChange, onSave, saved }: Props) {
   const [show, setShow] = useState(false)
   const [justSaved, setJustSaved] = useState(false)
@@ -35,12 +34,12 @@ export function ApiKeyInput({ value, onChange, onSave, saved }: Props) {
         <button
           onClick={handleSave}
           disabled={!value.trim().startsWith('gsk_')}
-          style={{ ...smBtnStyle, background: '#1a3a2a', color: '#f5f2eb', borderColor: '#1a3a2a' }}
+          style={{ ...smBtnStyle, background: 'var(--accent)', color: 'var(--accent-text)', borderColor: 'var(--accent)' }}
         >
           {justSaved ? '✓ Uložené' : 'Uložiť'}
         </button>
       </div>
-      <div style={{ fontSize: '0.65rem', color: saved ? '#2d6e45' : '#7a7568', fontFamily: 'monospace', marginTop: '0.3rem' }}>
+      <div style={{ fontSize: '0.65rem', color: saved ? 'var(--log-ok)' : 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.3rem' }}>
         {saved ? '✓ API kľúč je uložený v prehliadači' : 'console.groq.com → API Keys → Create API Key'}
       </div>
     </div>
@@ -50,13 +49,14 @@ export function ApiKeyInput({ value, onChange, onSave, saved }: Props) {
 const labelStyle: React.CSSProperties = {
   display: 'block', fontSize: '0.65rem', fontWeight: 700,
   letterSpacing: '0.12em', textTransform: 'uppercase',
-  color: '#7a7568', fontFamily: 'monospace', marginBottom: '0.4rem',
+  color: 'var(--text-muted)', fontFamily: 'monospace', marginBottom: '0.4rem',
 }
 const inputStyle: React.CSSProperties = {
-  background: '#fff', border: '1px solid #ccc', color: '#1a1a16',
+  background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)',
   fontFamily: 'monospace', fontSize: '0.82rem', padding: '0.7rem 0.9rem', borderRadius: '4px',
 }
 const smBtnStyle: React.CSSProperties = {
-  background: '#eee', border: '1px solid #ccc', fontFamily: 'monospace',
-  fontSize: '0.7rem', padding: '0 1rem', borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap',
+  background: 'var(--btn-secondary)', border: '1px solid var(--border)', color: 'var(--text)',
+  fontFamily: 'monospace', fontSize: '0.7rem', padding: '0 1rem',
+  borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap',
 }

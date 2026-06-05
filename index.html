@@ -6,7 +6,53 @@
     <title>Prepis Nahrávky</title>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: system-ui, -apple-system, sans-serif; background: #f5f2eb; }
+
+      :root {
+        --bg: #f5f2eb;
+        --surface: #fff;
+        --border: #ccc;
+        --text: #1a1a16;
+        --text-muted: #7a7568;
+        --accent: #1a3a2a;
+        --accent-text: #f5f2eb;
+        --accent-muted: #9ab5a0;
+        --surface-accent: #e8f0eb;
+        --border-accent: #b8d4be;
+        --btn-secondary: #eee;
+        --progress-track: #d4cfc4;
+        --log-ok: #2d6e45;
+        --log-warn: #b8860b;
+        --error-bg: #fff5f5;
+        --error-border: #e8b4b4;
+        --error-text: #8b2020;
+      }
+
+      [data-theme="dark"] {
+        --bg: #141410;
+        --surface: #1e1e1a;
+        --border: #383832;
+        --text: #e8e4d8;
+        --text-muted: #8a8578;
+        --accent: #2d6e45;
+        --accent-text: #f0f5f0;
+        --accent-muted: #3a5a48;
+        --surface-accent: #1a2e20;
+        --border-accent: #2d5a38;
+        --btn-secondary: #2a2a26;
+        --progress-track: #2e2e28;
+        --log-ok: #4a9a62;
+        --log-warn: #d4a040;
+        --error-bg: #2e1a1a;
+        --error-border: #6b3030;
+        --error-text: #d47070;
+      }
+
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        transition: background 0.2s, color 0.2s;
+      }
     </style>
   </head>
   <body>

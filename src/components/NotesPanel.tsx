@@ -4,7 +4,6 @@ interface Props {
   notes: string
 }
 
-/** Panel so záznamom zo stretnutia – kopírovanie + stiahnutie */
 export function NotesPanel({ notes }: Props) {
   const [copied, setCopied] = useState(false)
 
@@ -45,7 +44,7 @@ export function NotesPanel({ notes }: Props) {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#7a7568', fontFamily: 'monospace', marginBottom: '0.5rem' }}>
+    <div style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'monospace', marginBottom: '0.5rem' }}>
       {children}
     </div>
   )
@@ -62,12 +61,12 @@ function fallbackCopy(text: string) {
 }
 
 const tbBtnStyle: React.CSSProperties = {
-  background: '#eee', border: '1px solid #ccc', color: '#1a1a16',
+  background: 'var(--btn-secondary)', border: '1px solid var(--border)', color: 'var(--text)',
   fontFamily: 'monospace', fontSize: '0.65rem', padding: '0.4rem 0.8rem',
   borderRadius: '4px', cursor: 'pointer',
 }
 const textboxStyle: React.CSSProperties = {
-  background: '#fff', border: '1px solid #ccc', borderRadius: '4px',
-  padding: '1rem', fontSize: '0.82rem', lineHeight: 1.85,
+  background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px',
+  padding: '1rem', fontSize: '0.82rem', lineHeight: 1.85, color: 'var(--text)',
   whiteSpace: 'pre-wrap', wordBreak: 'break-word',
 }

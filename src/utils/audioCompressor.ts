@@ -2,7 +2,16 @@
  * Kompresia audio súboru na 16kHz mono WAV pomocou Web Audio API.
  * Dôvod: Groq Whisper má limit 25 MB – veľké M4A (50+ MB) treba zmenšiť.
  * Výstup: WAV blob, typicky 5–15 MB pre 1-hodinovú nahrávku.
+ *
+ * iOS Safari: webkitAudioContext fallback + sampleRate sa nenastavuje
+ * v konštruktore (Safari ho ignoruje), resampling prebieha cez OfflineAudioContext.
  */
+
+type AnyAudioContext = typeof AudioContext
+const NativeAudioContext: AnyAudioContext =
+  window.AudioContext ??
+  (window as unknown as { webkitAudioContext: AnyAudioContext }).webkitAudioContext
+
 export async function compressAudio(
   file: File,
   onProgress: (msg: string) => void
@@ -10,13 +19,13 @@ export async function compressAudio(
   onProgress('Dekódujem audio súbor...')
   const arrayBuffer = await file.arrayBuffer()
 
-  const audioCtx = new AudioContext({ sampleRate: 16000 })
+  // Nevnucujeme sampleRate – Safari ho ignoruje; resampling robí OfflineAudioContext
+  const audioCtx = new NativeAudioContext()
   const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
   await audioCtx.close()
 
   onProgress('Konvertujem na 16kHz mono...')
 
-  // Render na 16kHz mono cez OfflineAudioContext
   const offlineCtx = new OfflineAudioContext(
     1,
     Math.ceil(audioBuffer.duration * 16000),
@@ -24,7 +33,6 @@ export async function compressAudio(
   )
   const source = offlineCtx.createBufferSource()
 
-  // Mix down na mono ak je stereo
   if (audioBuffer.numberOfChannels > 1) {
     const monoBuffer = offlineCtx.createBuffer(
       1,
@@ -73,7 +81,7 @@ function audioBufferToWav(buffer: AudioBuffer): Blob {
   writeStr(8, 'WAVE')
   writeStr(12, 'fmt ')
   view.setUint32(16, 16, true)
-  view.setUint16(20, 1, true)          // PCM
+  view.setUint16(20, 1, true)
   view.setUint16(22, numChannels, true)
   view.setUint32(24, sampleRate, true)
   view.setUint32(28, sampleRate * numChannels * 2, true)
