@@ -1,11 +1,35 @@
 import { useState } from 'react'
 
-interface Props {
-  notes: string
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList
+}
+interface SpeechRecognitionInstance extends EventTarget {
+  lang: string
+  interimResults: boolean
+  maxAlternatives: number
+  start(): void
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: (() => void) | null
+  onend: (() => void) | null
+}
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => SpeechRecognitionInstance
+    webkitSpeechRecognition?: new () => SpeechRecognitionInstance
+  }
 }
 
-export function NotesPanel({ notes }: Props) {
+interface Props {
+  notes: string
+  apiKey: string
+  onNotesChange: (notes: string) => void
+}
+
+export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
   const [copied, setCopied] = useState(false)
+  const [speaking, setSpeaking] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [processing, setProcessing] = useState(false)
 
   if (!notes) return null
 
@@ -29,6 +53,73 @@ export function NotesPanel({ notes }: Props) {
     a.click()
   }
 
+  const handleSpeak = () => {
+    if (speaking) {
+      window.speechSynthesis.cancel()
+      setSpeaking(false)
+      return
+    }
+    const utterance = new SpeechSynthesisUtterance(notes)
+    utterance.lang = 'sk-SK'
+    utterance.onend = () => setSpeaking(false)
+    utterance.onerror = () => setSpeaking(false)
+    setSpeaking(true)
+    window.speechSynthesis.speak(utterance)
+  }
+
+  const handleVoiceCommand = () => {
+    const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
+    if (!SR) {
+      alert('Váš prehliadač nepodporuje rozpoznávanie hlasu.')
+      return
+    }
+    const recognition = new SR()
+    recognition.lang = 'sk-SK'
+    recognition.interimResults = false
+    recognition.maxAlternatives = 1
+    setListening(true)
+    recognition.start()
+
+    recognition.onresult = async (event) => {
+      setListening(false)
+      const command = event.results[0][0].transcript
+      setProcessing(true)
+      try {
+        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            max_tokens: 2048,
+            messages: [{
+              role: 'user',
+              content: `Si editor záznamu zo stretnutia. Vykonaj nasledujúci hlasový príkaz v zázname a vráť CELÝ upravený záznam bez akýchkoľvek komentárov.\n\nZÁZNAM:\n${notes}\n\nPRÍKAZ: ${command}`,
+            }],
+          }),
+        })
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+        const data = await resp.json() as { choices: Array<{ message?: { content?: string } }> }
+        const edited = data.choices?.[0]?.message?.content?.trim() ?? ''
+        if (edited) onNotesChange(edited)
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : 'Neznáma chyba'
+        alert(`Chyba pri úprave: ${msg}`)
+      } finally {
+        setProcessing(false)
+      }
+    }
+
+    recognition.onerror = () => {
+      setListening(false)
+      alert('Nepodarilo sa rozpoznať hlas. Skúste znova.')
+    }
+
+    recognition.onend = () => setListening(false)
+  }
+
   return (
     <div style={{ marginBottom: '1.4rem' }}>
       <SectionLabel>Záznam zo stretnutia</SectionLabel>
@@ -38,6 +129,16 @@ export function NotesPanel({ notes }: Props) {
         </button>
         <button onClick={handleDownload} style={tbBtnStyle}>
           Stiahnuť .txt
+        </button>
+        <button onClick={handleSpeak} style={tbBtnStyle}>
+          {speaking ? '⏹ Zastaviť čítanie' : '▶ Prečítať nahlas'}
+        </button>
+        <button
+          onClick={handleVoiceCommand}
+          disabled={listening || processing}
+          style={{ ...tbBtnStyle, background: listening ? 'var(--error-bg)' : processing ? 'var(--accent-muted)' : 'var(--btn-secondary)' }}
+        >
+          {listening ? '🎙 Počúvam…' : processing ? '⏳ Upravujem…' : '🎙 Hlasový príkaz'}
         </button>
       </div>
       <div style={{ ...textboxStyle, fontFamily: 'system-ui, sans-serif' }}>{notes}</div>

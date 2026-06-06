@@ -201,7 +201,7 @@ export default function App() {
 
         <ProgressPanel progress={state.progress} label={state.progressLabel} logs={state.logs} />
         <TranscriptPanel transcript={state.transcript} onGenerateNotes={handleGenerateNotes} generatingNotes={generatingNotes} />
-        <NotesPanel notes={notes} />
+        <NotesPanel notes={notes} apiKey={apiKey.trim()} onNotesChange={setNotes} />
 
       </div>
     </div>
