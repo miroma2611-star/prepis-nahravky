@@ -1,0 +1,17 @@
+{
+  "name": "Prepis Nahrávky",
+  "short_name": "Prepis",
+  "description": "Audio → Text → Záznam zo stretnutia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a3a2a",
+  "theme_color": "#1a3a2a",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
