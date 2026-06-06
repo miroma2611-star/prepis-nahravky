@@ -50,7 +50,8 @@ ${text}`
 
 export default function App() {
   const [savedKey, setSavedKey] = useLocalStorage('groq_api_key', '')
-  const [apiKey, setApiKey] = useState(savedKey)
+  const envKey = import.meta.env.VITE_GROQ_API_KEY as string | undefined
+  const [apiKey, setApiKey] = useState(envKey || savedKey)
   const [files, setFiles] = useState<File[]>([])
   const [lang, setLang] = useState('sk')
   const [timestamps, setTimestamps] = useState(false)
@@ -136,12 +137,18 @@ export default function App() {
           </button>
         </div>
 
-        <ApiKeyInput
-          value={apiKey}
-          onChange={setApiKey}
-          onSave={handleSaveKey}
-          saved={savedKey === apiKey && savedKey.length > 0}
-        />
+        {envKey ? (
+          <div style={{ marginBottom: '1.4rem', fontFamily: 'monospace', fontSize: '0.65rem', color: 'var(--log-ok)' }}>
+            ✓ Groq API kľúč: nakonfigurovaný
+          </div>
+        ) : (
+          <ApiKeyInput
+            value={apiKey}
+            onChange={setApiKey}
+            onSave={handleSaveKey}
+            saved={savedKey === apiKey && savedKey.length > 0}
+          />
+        )}
 
         <FileUpload onFiles={handleFiles} files={files} />
 

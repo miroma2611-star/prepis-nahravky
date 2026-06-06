@@ -7,7 +7,7 @@ Praktický manuál pre každého kto preberie správu tejto aplikácie.
 | Čo | Kde |
 |---|---|
 | Kód | github.com/miroma2611-star/prepis-nahravky |
-| Hosting | Cloudflare Pages (prepis-nahravky.pages.dev) |
+| Hosting | Cloudflare Pages (kovobel-prepis.pages.dev) |
 | Groq API | console.groq.com (účet Miroslav Masár) |
 
 ## Lokálny vývoj
