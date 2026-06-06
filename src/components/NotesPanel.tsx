@@ -20,9 +20,12 @@ export function NotesPanel({ notes }: Props) {
   }
 
   const handleDownload = () => {
+    const defaultName = `zaznam_${new Date().toISOString().slice(0, 10)}`
+    const name = window.prompt('Názov súboru (bez .txt):', defaultName)
+    if (name === null) return
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([notes], { type: 'text/plain;charset=utf-8' }))
-    a.download = `zaznam_${new Date().toISOString().slice(0, 10)}.txt`
+    a.download = `${name.trim() || defaultName}.txt`
     a.click()
   }
 

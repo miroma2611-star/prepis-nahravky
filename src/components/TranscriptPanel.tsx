@@ -22,9 +22,12 @@ export function TranscriptPanel({ transcript, onGenerateNotes, generatingNotes }
   }
 
   const handleDownload = () => {
+    const defaultName = `prepis_${new Date().toISOString().slice(0, 10)}`
+    const name = window.prompt('Názov súboru (bez .txt):', defaultName)
+    if (name === null) return
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([transcript], { type: 'text/plain;charset=utf-8' }))
-    a.download = `prepis_${new Date().toISOString().slice(0, 10)}.txt`
+    a.download = `${name.trim() || defaultName}.txt`
     a.click()
   }
 
