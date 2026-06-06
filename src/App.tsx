@@ -85,11 +85,14 @@ export default function App() {
     setGeneratingNotes(true)
     setNotes('')
     try {
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey.trim()}`,
+        },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'llama-3.3-70b-versatile',
           max_tokens: 2048,
           messages: [{
             role: 'user',
@@ -101,8 +104,8 @@ export default function App() {
         const err = await resp.json().catch(() => ({})) as { error?: { message?: string } }
         throw new Error(err?.error?.message ?? `HTTP ${resp.status}`)
       }
-      const data = await resp.json() as { content: Array<{ text?: string }> }
-      setNotes(data.content?.map(b => b.text ?? '').join('').trim())
+      const data = await resp.json() as { choices: Array<{ message?: { content?: string } }> }
+      setNotes(data.choices?.[0]?.message?.content?.trim() ?? '')
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Neznáma chyba'
       alert(`Chyba pri generovaní záznamu: ${msg}`)
