@@ -1,36 +1,50 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3a593b" />
-      <stop offset="50%" stop-color="#2e4430" />
-      <stop offset="100%" stop-color="#1b2a1c" />
-    </linearGradient>
-    <linearGradient id="silverGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff" />
-      <stop offset="100%" stop-color="#e2eae3" />
-    </linearGradient>
-    <filter id="dropShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000000" flood-opacity="0.4" />
-    </filter>
-  </defs>
 
-  <rect x="32" y="32" width="448" height="448" rx="105" fill="url(#greenGrad)" />
+  <!-- Pozadie -->
+  <rect x="0" y="0" width="512" height="512" rx="108" fill="#1b2d18"/>
 
-  <g filter="url(#dropShadow)">
-    <g fill="url(#silverGrad)">
-      <rect x="95" y="226" width="14" height="60" rx="7" />
-      <rect x="120" y="196" width="14" height="120" rx="7" />
-      <rect x="145" y="166" width="14" height="180" rx="7" />
-      <rect x="170" y="206" width="14" height="100" rx="7" />
-    </g>
+  <!-- Korunka mikrofónu -->
+  <ellipse cx="256" cy="92" rx="18" ry="6" fill="#c8d4a0"/>
+  <rect x="250" y="86" width="12" height="12" rx="2" fill="#c8d4a0"/>
+  <line x1="244" y1="88" x2="244" y2="96" stroke="#c8d4a0" stroke-width="4" stroke-linecap="round"/>
+  <line x1="268" y1="88" x2="268" y2="96" stroke="#c8d4a0" stroke-width="4" stroke-linecap="round"/>
 
-    <path d="M 215 370 L 215 170 C 215 125, 255 125, 290 125 L 345 125 C 405 125, 405 245, 345 245 L 215 245" 
-          fill="none" stroke="url(#silverGrad)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Telo mikrofónu -->
+  <ellipse cx="256" cy="172" rx="54" ry="76" fill="none" stroke="#c8d4a0" stroke-width="7"/>
 
-    <g fill="url(#silverGrad)">
-      <rect x="255" y="175" width="32" height="54" rx="16" />
-      <path d="M 243 200 C 243 236, 299 236, 299 200" fill="none" stroke="url(#silverGrad)" stroke-width="8" stroke-linecap="round" />
-      <path d="M 271 230 L 271 255" stroke="url(#silverGrad)" stroke-width="8" stroke-linecap="round" />
-    </g>
-  </g>
+  <!-- Horizontálne čiary - mriežka -->
+  <line x1="205" y1="130" x2="307" y2="130" stroke="#c8d4a0" stroke-width="4" stroke-linecap="round"/>
+  <line x1="202" y1="148" x2="310" y2="148" stroke="#c8d4a0" stroke-width="4" stroke-linecap="round"/>
+  <line x1="202" y1="166" x2="310" y2="166" stroke="#c8d4a0" stroke-width="4" stroke-linecap="round"/>
+  <line x1="202" y1="184" x2="310" y2="184" stroke="#c8d4a0" stroke-width="4" stroke-linecap="round"/>
+  <line x1="204" y1="202" x2="308" y2="202" stroke="#c8d4a0" stroke-width="4" stroke-linecap="round"/>
+  <line x1="209" y1="220" x2="303" y2="220" stroke="#c8d4a0" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Krk mikrofónu -->
+  <rect x="248" y="246" width="16" height="22" rx="3" fill="#c8d4a0"/>
+  <rect x="236" y="266" width="40" height="8" rx="4" fill="#c8d4a0"/>
+  <rect x="230" y="272" width="52" height="6" rx="3" fill="#c8d4a0"/>
+
+  <!-- Text PREPIS -->
+  <text x="256" y="322"
+    font-family="'Arial Black', 'Arial Bold', Arial, sans-serif"
+    font-size="54"
+    font-weight="900"
+    text-anchor="middle"
+    letter-spacing="5"
+    fill="#c8d4a0">PREPIS</text>
+
+  <!-- Zvukové vlny -->
+  <rect x="148" y="368" width="14" height="32" rx="7" fill="#c8d4a0"/>
+  <rect x="170" y="355" width="14" height="50" rx="7" fill="#c8d4a0"/>
+  <rect x="192" y="362" width="14" height="38" rx="7" fill="#c8d4a0"/>
+  <rect x="214" y="348" width="14" height="58" rx="7" fill="#c8d4a0"/>
+  <rect x="236" y="356" width="14" height="44" rx="7" fill="#c8d4a0"/>
+  <rect x="258" y="344" width="14" height="60" rx="7" fill="#c8d4a0"/>
+  <rect x="280" y="354" width="14" height="44" rx="7" fill="#c8d4a0"/>
+  <rect x="302" y="347" width="14" height="58" rx="7" fill="#c8d4a0"/>
+  <rect x="324" y="361" width="14" height="38" rx="7" fill="#c8d4a0"/>
+  <rect x="346" y="354" width="14" height="50" rx="7" fill="#c8d4a0"/>
+  <rect x="368" y="367" width="14" height="32" rx="7" fill="#c8d4a0"/>
+
 </svg>
