@@ -42,19 +42,29 @@ export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
       setSpeaking(false)
       return
     }
-    const utterance = new SpeechSynthesisUtterance(notes)
-    // Použi slovenský alebo český hlas — ak nie je dostupný, nechaj systém rozhodnúť
-    const voices = window.speechSynthesis.getVoices()
-    const preferred = voices.find(v => v.lang.startsWith('sk')) ?? voices.find(v => v.lang.startsWith('cs'))
-    if (preferred) {
+    const trySpeak = () => {
+      const voices = window.speechSynthesis.getVoices()
+      const preferred = voices.find(v => v.lang.startsWith('sk')) ?? voices.find(v => v.lang.startsWith('cs'))
+      if (!preferred) {
+        alert('Čítanie nahlas nie je dostupné — telefón nemá slovenský ani český hlas.\n\nNainštalujte jazykový balík: Nastavenia → Všeobecné → Reč → Prevod textu na reč.')
+        return
+      }
+      const utterance = new SpeechSynthesisUtterance(notes)
       utterance.voice = preferred
       utterance.lang = preferred.lang
+      utterance.rate = 0.95
+      utterance.onend = () => setSpeaking(false)
+      utterance.onerror = () => setSpeaking(false)
+      setSpeaking(true)
+      window.speechSynthesis.speak(utterance)
     }
-    utterance.rate = 0.95
-    utterance.onend = () => setSpeaking(false)
-    utterance.onerror = () => setSpeaking(false)
-    setSpeaking(true)
-    setTimeout(() => window.speechSynthesis.speak(utterance), 100)
+    // Hlasy sa na mobile načítavajú asynchrónne
+    if (window.speechSynthesis.getVoices().length > 0) {
+      trySpeak()
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => { trySpeak() }
+      setTimeout(trySpeak, 1000)
+    }
   }
 
   const handleStartRecording = async () => {
