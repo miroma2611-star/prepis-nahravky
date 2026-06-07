@@ -1,26 +1,5 @@
 import { useState, useRef } from 'react'
 
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList
-}
-interface SpeechRecognitionInstance extends EventTarget {
-  lang: string
-  interimResults: boolean
-  continuous: boolean
-  maxAlternatives: number
-  start(): void
-  stop(): void
-  onresult: ((event: SpeechRecognitionEvent) => void) | null
-  onerror: (() => void) | null
-  onend: (() => void) | null
-}
-declare global {
-  interface Window {
-    SpeechRecognition?: new () => SpeechRecognitionInstance
-    webkitSpeechRecognition?: new () => SpeechRecognitionInstance
-  }
-}
-
 interface Props {
   notes: string
   apiKey: string
@@ -30,10 +9,10 @@ interface Props {
 export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
   const [copied, setCopied] = useState(false)
   const [speaking, setSpeaking] = useState(false)
-  const [listening, setListening] = useState(false)
+  const [recording, setRecording] = useState(false)
   const [processing, setProcessing] = useState(false)
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
-  const transcriptRef = useRef<string>('')
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
 
   if (!notes) return null
 
@@ -64,29 +43,70 @@ export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
       return
     }
     const utterance = new SpeechSynthesisUtterance(notes)
-    // Nájdi slovenský hlas, ak nie je dostupný použi prvý dostupný
+    // Použi slovenský alebo český hlas — ak nie je dostupný, nechaj systém rozhodnúť
     const voices = window.speechSynthesis.getVoices()
-    const skVoice = voices.find(v => v.lang.startsWith('sk')) ?? voices.find(v => v.lang.startsWith('cs')) ?? voices[0]
-    if (skVoice) utterance.voice = skVoice
-    utterance.lang = skVoice?.lang ?? 'sk-SK'
+    const preferred = voices.find(v => v.lang.startsWith('sk')) ?? voices.find(v => v.lang.startsWith('cs'))
+    if (preferred) {
+      utterance.voice = preferred
+      utterance.lang = preferred.lang
+    }
     utterance.rate = 0.95
     utterance.onend = () => setSpeaking(false)
     utterance.onerror = () => setSpeaking(false)
     setSpeaking(true)
-    // Na niektorých mobiloch treba krátke oneskorenie
     setTimeout(() => window.speechSynthesis.speak(utterance), 100)
   }
 
-  const sendToGroq = async (command: string) => {
-    if (!command.trim()) return
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+      const recorder = new MediaRecorder(stream, { mimeType })
+      chunksRef.current = []
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop())
+        void processVoiceCommand(new Blob(chunksRef.current, { type: mimeType }), mimeType)
+      }
+      recorder.start()
+      mediaRecorderRef.current = recorder
+      setRecording(true)
+    } catch {
+      alert('Nepodarilo sa spustiť mikrofón. Skontrolujte povolenia.')
+    }
+  }
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop()
+      mediaRecorderRef.current = null
+    }
+    setRecording(false)
+  }
+
+  const processVoiceCommand = async (audioBlob: Blob, mimeType: string) => {
     setProcessing(true)
     try {
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      // 1. Prepis hlasu cez Groq Whisper
+      const ext = mimeType.includes('mp4') ? 'mp4' : 'webm'
+      const fd = new FormData()
+      fd.append('file', audioBlob, `command.${ext}`)
+      fd.append('model', 'whisper-large-v3')
+      fd.append('language', 'sk')
+      fd.append('response_format', 'text')
+      const whisperResp = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: fd,
+      })
+      if (!whisperResp.ok) throw new Error(`Whisper HTTP ${whisperResp.status}`)
+      const command = (await whisperResp.text()).trim()
+      if (!command) { setProcessing(false); return }
+
+      // 2. Úprava záznamu cez Groq LLM
+      const llmResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
           model: 'llama-3.3-70b-versatile',
           max_tokens: 2048,
@@ -96,8 +116,8 @@ export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
           }],
         }),
       })
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-      const data = await resp.json() as { choices: Array<{ message?: { content?: string } }> }
+      if (!llmResp.ok) throw new Error(`LLM HTTP ${llmResp.status}`)
+      const data = await llmResp.json() as { choices: Array<{ message?: { content?: string } }> }
       const edited = data.choices?.[0]?.message?.content?.trim() ?? ''
       if (edited) onNotesChange(edited)
     } catch (e) {
@@ -106,51 +126,6 @@ export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
     } finally {
       setProcessing(false)
     }
-  }
-
-  const handleStartListening = () => {
-    const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
-    if (!SR) {
-      alert('Váš prehliadač nepodporuje rozpoznávanie hlasu.')
-      return
-    }
-    const recognition = new SR()
-    recognition.lang = 'sk-SK'
-    recognition.interimResults = false
-    recognition.continuous = true  // Neprestáva automaticky
-    recognition.maxAlternatives = 1
-    transcriptRef.current = ''
-    recognitionRef.current = recognition
-    setListening(true)
-    recognition.start()
-
-    recognition.onresult = (event) => {
-      // Zbiera všetky rozpoznané časti dokopy
-      let text = ''
-      for (let i = 0; i < event.results.length; i++) {
-        text += event.results[i][0].transcript + ' '
-      }
-      transcriptRef.current = text.trim()
-    }
-
-    recognition.onerror = () => {
-      setListening(false)
-      recognitionRef.current = null
-    }
-
-    recognition.onend = () => {
-      setListening(false)
-      recognitionRef.current = null
-    }
-  }
-
-  const handleStopListening = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop()
-      recognitionRef.current = null
-    }
-    setListening(false)
-    void sendToGroq(transcriptRef.current)
   }
 
   return (
@@ -166,25 +141,25 @@ export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
         <button onClick={handleSpeak} style={tbBtnStyle}>
           {speaking ? '⏹ Zastaviť čítanie' : '▶ Prečítať nahlas'}
         </button>
-        {!listening ? (
+        {!recording ? (
           <button
-            onClick={handleStartListening}
+            onClick={handleStartRecording}
             disabled={processing}
             style={{ ...tbBtnStyle, background: processing ? 'var(--accent-muted)' : 'var(--btn-secondary)' }}
           >
-            {processing ? '⏳ Upravujem…' : '🎙 Hlasový príkaz'}
+            {processing ? '⏳ Spracovávam…' : '🎙 Hlasový príkaz'}
           </button>
         ) : (
           <button
-            onClick={handleStopListening}
+            onClick={handleStopRecording}
             style={{ ...tbBtnStyle, background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', fontWeight: 700 }}
           >
-            ⏹ Hotovo — spracovať
+            ⏹ Hotovo
           </button>
         )}
       </div>
-      {listening && (
-        <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--log-ok)', marginBottom: '0.5rem' }}>
+      {recording && (
+        <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--error-text)', marginBottom: '0.5rem' }}>
           🔴 Nahrávam… hovor príkaz a stlač „Hotovo"
         </div>
       )}
