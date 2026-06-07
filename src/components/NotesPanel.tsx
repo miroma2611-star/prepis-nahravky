@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 interface SpeechRecognitionEvent extends Event {
   results: SpeechRecognitionResultList
@@ -6,8 +6,10 @@ interface SpeechRecognitionEvent extends Event {
 interface SpeechRecognitionInstance extends EventTarget {
   lang: string
   interimResults: boolean
+  continuous: boolean
   maxAlternatives: number
   start(): void
+  stop(): void
   onresult: ((event: SpeechRecognitionEvent) => void) | null
   onerror: (() => void) | null
   onend: (() => void) | null
@@ -30,6 +32,8 @@ export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
   const [speaking, setSpeaking] = useState(false)
   const [listening, setListening] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+  const transcriptRef = useRef<string>('')
 
   if (!notes) return null
 
@@ -60,14 +64,51 @@ export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
       return
     }
     const utterance = new SpeechSynthesisUtterance(notes)
-    utterance.lang = 'sk-SK'
+    // Nájdi slovenský hlas, ak nie je dostupný použi prvý dostupný
+    const voices = window.speechSynthesis.getVoices()
+    const skVoice = voices.find(v => v.lang.startsWith('sk')) ?? voices.find(v => v.lang.startsWith('cs')) ?? voices[0]
+    if (skVoice) utterance.voice = skVoice
+    utterance.lang = skVoice?.lang ?? 'sk-SK'
+    utterance.rate = 0.95
     utterance.onend = () => setSpeaking(false)
     utterance.onerror = () => setSpeaking(false)
     setSpeaking(true)
-    window.speechSynthesis.speak(utterance)
+    // Na niektorých mobiloch treba krátke oneskorenie
+    setTimeout(() => window.speechSynthesis.speak(utterance), 100)
   }
 
-  const handleVoiceCommand = () => {
+  const sendToGroq = async (command: string) => {
+    if (!command.trim()) return
+    setProcessing(true)
+    try {
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: 2048,
+          messages: [{
+            role: 'user',
+            content: `Si editor záznamu zo stretnutia. Vykonaj nasledujúci hlasový príkaz v zázname a vráť CELÝ upravený záznam bez akýchkoľvek komentárov.\n\nZÁZNAM:\n${notes}\n\nPRÍKAZ: ${command}`,
+          }],
+        }),
+      })
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      const data = await resp.json() as { choices: Array<{ message?: { content?: string } }> }
+      const edited = data.choices?.[0]?.message?.content?.trim() ?? ''
+      if (edited) onNotesChange(edited)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Neznáma chyba'
+      alert(`Chyba pri úprave: ${msg}`)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleStartListening = () => {
     const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition
     if (!SR) {
       alert('Váš prehliadač nepodporuje rozpoznávanie hlasu.')
@@ -76,48 +117,40 @@ export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
     const recognition = new SR()
     recognition.lang = 'sk-SK'
     recognition.interimResults = false
+    recognition.continuous = true  // Neprestáva automaticky
     recognition.maxAlternatives = 1
+    transcriptRef.current = ''
+    recognitionRef.current = recognition
     setListening(true)
     recognition.start()
 
-    recognition.onresult = async (event) => {
-      setListening(false)
-      const command = event.results[0][0].transcript
-      setProcessing(true)
-      try {
-        const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            max_tokens: 2048,
-            messages: [{
-              role: 'user',
-              content: `Si editor záznamu zo stretnutia. Vykonaj nasledujúci hlasový príkaz v zázname a vráť CELÝ upravený záznam bez akýchkoľvek komentárov.\n\nZÁZNAM:\n${notes}\n\nPRÍKAZ: ${command}`,
-            }],
-          }),
-        })
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-        const data = await resp.json() as { choices: Array<{ message?: { content?: string } }> }
-        const edited = data.choices?.[0]?.message?.content?.trim() ?? ''
-        if (edited) onNotesChange(edited)
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Neznáma chyba'
-        alert(`Chyba pri úprave: ${msg}`)
-      } finally {
-        setProcessing(false)
+    recognition.onresult = (event) => {
+      // Zbiera všetky rozpoznané časti dokopy
+      let text = ''
+      for (let i = 0; i < event.results.length; i++) {
+        text += event.results[i][0].transcript + ' '
       }
+      transcriptRef.current = text.trim()
     }
 
     recognition.onerror = () => {
       setListening(false)
-      alert('Nepodarilo sa rozpoznať hlas. Skúste znova.')
+      recognitionRef.current = null
     }
 
-    recognition.onend = () => setListening(false)
+    recognition.onend = () => {
+      setListening(false)
+      recognitionRef.current = null
+    }
+  }
+
+  const handleStopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop()
+      recognitionRef.current = null
+    }
+    setListening(false)
+    void sendToGroq(transcriptRef.current)
   }
 
   return (
@@ -133,14 +166,28 @@ export function NotesPanel({ notes, apiKey, onNotesChange }: Props) {
         <button onClick={handleSpeak} style={tbBtnStyle}>
           {speaking ? '⏹ Zastaviť čítanie' : '▶ Prečítať nahlas'}
         </button>
-        <button
-          onClick={handleVoiceCommand}
-          disabled={listening || processing}
-          style={{ ...tbBtnStyle, background: listening ? 'var(--error-bg)' : processing ? 'var(--accent-muted)' : 'var(--btn-secondary)' }}
-        >
-          {listening ? '🎙 Počúvam…' : processing ? '⏳ Upravujem…' : '🎙 Hlasový príkaz'}
-        </button>
+        {!listening ? (
+          <button
+            onClick={handleStartListening}
+            disabled={processing}
+            style={{ ...tbBtnStyle, background: processing ? 'var(--accent-muted)' : 'var(--btn-secondary)' }}
+          >
+            {processing ? '⏳ Upravujem…' : '🎙 Hlasový príkaz'}
+          </button>
+        ) : (
+          <button
+            onClick={handleStopListening}
+            style={{ ...tbBtnStyle, background: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-text)', fontWeight: 700 }}
+          >
+            ⏹ Hotovo — spracovať
+          </button>
+        )}
       </div>
+      {listening && (
+        <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--log-ok)', marginBottom: '0.5rem' }}>
+          🔴 Nahrávam… hovor príkaz a stlač „Hotovo"
+        </div>
+      )}
       <div style={{ ...textboxStyle, fontFamily: 'system-ui, sans-serif' }}>{notes}</div>
     </div>
   )
